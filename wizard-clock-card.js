@@ -66,10 +66,13 @@ class WizardClockCard extends HTMLElement {
       }
 
       /* Create an image object for each wizard, and assign the URL if we can find one. Images will only be displayed once they have completed loading. */
-      var img = new Image();
-      if (this.show_images==1 && state && state.attributes && state.attributes.entity_picture)
-        img.src = state.attributes.entity_picture;
-      this.wizardImages.push(img);
+	  if (!this.wizardImages[num])
+	  {
+        var img = new Image();
+        if (state && state.attributes && state.attributes.entity_picture)
+          img.src = state.attributes.entity_picture;
+        this.wizardImages.push(img);
+	  }
     }
 
     if (this.zones.length < this.min_location_slots) {
@@ -139,6 +142,7 @@ class WizardClockCard extends HTMLElement {
     this.travellingState = config.travelling ? config.travelling : "Travelling";
     this.min_location_slots=this.config.min_location_slots ? this.config.min_location_slots : 0;
     this.show_images=this.config.show_images ? (this.config.show_images=="Yes" ? 1 : 0) : 0;
+	this.wizardImages = [];
     
     if (this.config.shaft_colour){
       this.shaft_colour = this.config.shaft_colour;
@@ -368,12 +372,8 @@ class WizardClockCard extends HTMLElement {
 	  
     ctx.save();
     ctx.beginPath();
-    ctx.arc(0, -length, width*2, 0, Math.PI * 2, false);
+    ctx.arc(0, -length, width, 0, Math.PI * 2, false);
     ctx.clip();
-    ctx.shadowColor = "#0008";
-    ctx.shadowBlur = 10;
-    ctx.shadowOffsetX = 5;
-    ctx.shadowOffsetY = 5;
     ctx.drawImage(image, -width, -length*1.1, width*2, width*2);
     ctx.restore();
 
