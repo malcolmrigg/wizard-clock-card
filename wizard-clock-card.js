@@ -1,5 +1,5 @@
 var CARDNAME = "wizard-clock-card";
-var VERSION = "0.8.1";
+var VERSION = "1.0.0";
 
 class WizardClockCard extends HTMLElement {
 
