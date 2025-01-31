@@ -14,21 +14,23 @@ I decided to make it public so that other (more skillful) people could make use 
 
 * Shows the friendly name of the current Zone that a person/entity is located in 
 * If a person/entity isn't in a Zone then it marks that entity as "Lost" (can be customised)
-* If an entity has a velocity of greater than 15 then it marks that entity as "Travelling" (only tested using owntracks - and GPS must be turned on on your phone for velocity to be reported)
+* Attempts to look at various attributes to work out whether entity is "Travelling" 
 * Locations are added dynamically as needed, however you can configure permanently shown locations by adding them to the "locations" list in the config
-* For family members without a phone (or those that don't want to be tracked with owntracks!) it can use the google calendar platform - simply create a calendar with the expected locations of that person as the name of appointments at the appropriate times
+* Can use any entity type, e.g. it can use the google calendar platform if you create a calendar with the expected locations of that person as the name of appointments at the appropriate times
 * Font face can be customised (I use "Blackadder" for a suitably wizardy look)
 * Hand colour (and text colour on the hands) can be customised for each person
 * Hands animate fairly smoothly between states
 * "Lost" and "Travelling" state text can be customised
 * Supports right-to-left (RTL) languages like Hebrew and other RTL languages
+* If an entity has an entity_picture, it'll try and display it on the clock hands (disabled by default, can be enabled in config)
 
 
 ## Installation
 
 ### HACS
 
-Use this repository as a custom repository in HACS.
+Add this repository as a custom repository in HACS. Not in the default HACS repository yet, but a request has been submitted and it's in the queue.
+Updates are automatic.
 
 ### Manual
 
@@ -40,7 +42,7 @@ Use this repository as a custom repository in HACS.
 7. Add your config, see the example below
 
 
-#### Updating
+#### Manual Updates
 
 1. Copy the updated wizard-clock-card.js over the old version
 2. Edit the url in the Resources editor to increment the version number, e.g:
@@ -56,6 +58,7 @@ Use this repository as a custom repository in HACS.
 * exclude (optional): a list of locations that shall never be displayed, wizards at those locations will default to the `lost` state
 * min_location_slots (optional): the minimum number of locations to save space for around the dial of the clock 
 * wizards (required): a list of entities and display names for the device trackers/calendars used to represent your wizards. Now also supports setting individual colours for the hands/text.
+* show_images: Set to Yes to look for entity_picture attributes and display them on the clock hands
 * fontname (required): the name of the font you want to use in the clock
 * fontface (optional): a fontface string to select a custom web-font to load
 * shaft_colour (optional): the colour of the shaft
@@ -70,6 +73,7 @@ locations:
   - Work
   - School
 min_location_slots: 5
+show_images: Yes
 wizards:
   - entity: device_tracker.harrys_phone
     name: Harry
@@ -100,7 +104,7 @@ These are features/ideas that I'd like to add at some point, but may not happen 
 * Make pretty: It looks fairly basic at the moment (I'm no artist!).
 
   * ~~Maybe include support for themes too, if that's possible?~~ Colours are now taken from whatever theme you are using by default. Hand/text colour for each wizard can be overridden if desired... so it's getting there.
-  * Add pictures on clock hands taken from people/entities or possibly zones? Or even a combination of both, so person x at location y has a special "person x at location y" picture.
+  * Add pictures on clock hands taken from people/entities or possibly zones? Or even a combination of both, so person x at location y has a special "person x at location y" picture. **Done for entities**
   * Add config options for clock face colours, including the ability to make them transparent.
   
 * Better support for "speed" attributes, including for person entities looking up the speed from their current device tracker source
