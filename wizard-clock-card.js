@@ -363,22 +363,16 @@ class WizardClockCard extends HTMLElement {
 
     ctx.fill();
 	  
-	//if (image && image.complete){
-	//	ctx.drawImage(image, -width, -length*1.1, width*2, width*2);
-	//}
-	  
-	ctx.save()
-    ctx.beginPath()
-    ctx.arc(0, -length, width*2, 0, Math.PI * 2, false)
-    //ctx.strokeStyle = '#2465D3'
-    //ctx.stroke()
-    ctx.clip()
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(0, -length, width*2, 0, Math.PI * 2, false);
+    ctx.clip();
     ctx.shadowColor = "#0008";
     ctx.shadowBlur = 10;
     ctx.shadowOffsetX = 5;
     ctx.shadowOffsetY = 5;
-    ctx.drawImage(image, -width, -length*1.1, width*2, width*2)
-    ctx.restore()
+    ctx.drawImage(image, -width, -length*1.1, width*2, width*2);
+    ctx.restore();
 
     ctx.font = width*this.fontScale + "px " + this.selectedFont;
     if (textcolour) {
