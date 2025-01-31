@@ -226,6 +226,13 @@ class WizardClockCard extends HTMLElement {
       */
       var ang;
       var num;
+      /* variable to adjust the distance from the edge of the circle - 
+		  1 = good distance
+		  0.5 = close
+		  0 = TOO CLOSE
+      */
+      const textPadding = 0.6;
+	  
       ctx.font = radius*0.15*this.fontScale + "px " + this.selectedFont;
       ctx.textBaseline="middle";
       ctx.textAlign="center";
@@ -258,7 +265,7 @@ class WizardClockCard extends HTMLElement {
           div.style.fontFamily = this.selectedFont;
           div.style.fontSize = radius*0.15*this.fontScale + "px";
           document.body.appendChild(div);
-          var textHeight = div.offsetHeight;
+          var textHeight = div.offsetHeight*textPadding;
           document.body.removeChild(div);
 
           // rotate 50% of total angle for center alignment
@@ -379,13 +386,22 @@ class WizardClockCard extends HTMLElement {
     ctx.quadraticCurveTo(-width, -length*0.5, 0, 0);
 
     ctx.fill();
-	  
-    ctx.save();
-    ctx.beginPath();
-    ctx.arc(0, -length, width, 0, Math.PI * 2, false);
-    ctx.clip();
-    ctx.drawImage(image, -width*1.2, -length-(width*1.2), (width*1.2)*2, (width*1.2)*2);
-    ctx.restore();
+
+    if (image && image.src!="" && image.complete){
+      ctx.save();
+      ctx.beginPath();
+      if (colour) {
+        ctx.strokeStyle = colour;
+      } else {
+        ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--primary-color');
+      }
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      ctx.arc(0, -length, width, 0, Math.PI * 2, false);
+      ctx.clip();
+      ctx.drawImage(image, -width*1.2, -length-(width*1.2), (width*1.2)*2, (width*1.2)*2);
+      ctx.restore();
+    }
 
     ctx.font = width*this.fontScale + "px " + this.selectedFont;
     if (textcolour) {
