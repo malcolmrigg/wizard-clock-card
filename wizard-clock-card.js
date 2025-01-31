@@ -1,5 +1,5 @@
 var CARDNAME = "wizard-clock-card";
-var VERSION = "1.0.0b3";
+var VERSION = "1.0.0b4";
 
 class WizardClockCard extends HTMLElement {
 
@@ -396,8 +396,8 @@ class WizardClockCard extends HTMLElement {
         ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--primary-color');
       }
       ctx.lineWidth = 2;
-      ctx.stroke();
       ctx.arc(0, -length, width, 0, Math.PI * 2, false);
+      ctx.stroke();
       ctx.clip();
       ctx.drawImage(image, -width*1.2, -length-(width*1.2), (width*1.2)*2, (width*1.2)*2);
       ctx.restore();
