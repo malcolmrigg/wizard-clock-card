@@ -384,7 +384,7 @@ class WizardClockCard extends HTMLElement {
     ctx.beginPath();
     ctx.arc(0, -length, width, 0, Math.PI * 2, false);
     ctx.clip();
-    ctx.drawImage(image, -width*1.2, -length*1.1, (width*1.2)*2, (width*1.2)*2);
+    ctx.drawImage(image, -width*1.2, -length-(width*1.2), (width*1.2)*2, (width*1.2)*2);
     ctx.restore();
 
     ctx.font = width*this.fontScale + "px " + this.selectedFont;
