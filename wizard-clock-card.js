@@ -57,6 +57,16 @@ class WizardClockCard extends HTMLElement {
         if (state.attributes.locality) {
           stateStr = state.attributes.locality
         }
+
+	/* Show travelling if not in a zone and we have a velocity */
+	const stateVelo = state && state.attributes ? (
+          state.attributes.velocity ? state.attributes.velocity : (
+            state.attributes.source && this._hass.states[state.attributes.source] && this._hass.states[state.attributes.source].attributes && this._hass.states[state.attributes.source].attributes.speed ? this._hass.states[state.attributes.source].attributes.speed : (
+            state.attributes.moving ? 16 : 0
+          ))) : 0; 
+	if (stateVelo > 15) {
+          stateStr = this.travellingState;
+	}
       }
 
       if (this.zones.indexOf(stateStr) == -1 && stateStr != "not_home" && stateStr != this.travellingState && !this.exclude.includes(stateStr))  {
@@ -374,7 +384,7 @@ class WizardClockCard extends HTMLElement {
     ctx.beginPath();
     ctx.arc(0, -length, width, 0, Math.PI * 2, false);
     ctx.clip();
-    ctx.drawImage(image, -width, -length*1.1, width*2, width*2);
+    ctx.drawImage(image, -width*1.2, -length*1.1, (width*1.2)*2, (width*1.2)*2);
     ctx.restore();
 
     ctx.font = width*this.fontScale + "px " + this.selectedFont;
