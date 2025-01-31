@@ -22,7 +22,7 @@ I decided to make it public so that other (more skillful) people could make use 
 * Hands animate fairly smoothly between states
 * "Lost" and "Travelling" state text can be customised
 * Supports right-to-left (RTL) languages like Hebrew and other RTL languages
-* If an entity has an entity_picture, it'll try and display it on the clock hands (disabled by default, can be enabled in config)
+* If an entity has an entity_picture, it'll try and display it on the clock hands (**experimental** disabled by default, can be enabled in config with "show_images: Yes")
 
 
 ## Installation
