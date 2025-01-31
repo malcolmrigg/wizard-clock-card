@@ -1,5 +1,5 @@
 var CARDNAME = "wizard-clock-card";
-var VERSION = "0.8.0";
+var VERSION = "0.8.1";
 
 class WizardClockCard extends HTMLElement {
 
@@ -9,6 +9,7 @@ class WizardClockCard extends HTMLElement {
     this.zones = [];
     this.targetstate = [];
     this.exclude = [];
+	this.wizardImages = [];
   
     if (this.lastframe && this.lastframe != 0){
       cancelAnimationFrame(this.lastframe);
@@ -63,6 +64,11 @@ class WizardClockCard extends HTMLElement {
           throw new Error("Unable to add state for entity " + this.config.wizards[num].entity + " of type " + typeof(stateStr) + ".");
         this.zones.push(stateStr);
       }
+
+		var img = new Image();
+		if (state && state.attributes && state.attributes.entity_picture)
+			img.src = state.attributes.entity_picture;
+	  this.wizardImages.push(img);
     }
 
     if (this.zones.length < this.min_location_slots) {
@@ -151,7 +157,7 @@ class WizardClockCard extends HTMLElement {
       this.ctx.clearRect(-this.canvas.width/2, -this.canvas.height/2, this.canvas.width/2, this.canvas.height/2)
       this.drawFace(this.ctx, this.radius);
       this.drawNumbers(this.ctx, this.radius, this.zones);
-      this.drawTime(this.ctx, this.radius, this.zones, this.config.wizards);
+      this.drawTime(this.ctx, this.wizardImages, this.radius, this.zones, this.config.wizards);
       this.drawHinge(this.ctx, this.radius, this.shaft_colour);
       // request next frame if required
       var redraw = false;
@@ -272,7 +278,7 @@ class WizardClockCard extends HTMLElement {
     return rtlChar.test(text);
   }
 
-  drawTime(ctx, radius, locations, wizards){
+  drawTime(ctx, wizardImages, radius, locations, wizards){
       this.targetstate = [];
       var num;
       for (num = 0; num < wizards.length; num++){
@@ -332,11 +338,11 @@ class WizardClockCard extends HTMLElement {
       }
       // draw currentstate
       for (num = 0; num < wizards.length; num++){
-        this.drawHand(ctx, this.currentstate[num].pos, this.currentstate[num].length, this.currentstate[num].width, this.currentstate[num].wizard, this.currentstate[num].colour, this.currentstate[num].textcolour);
+        this.drawHand(ctx, this.currentstate[num].pos, this.currentstate[num].length, this.currentstate[num].width, this.currentstate[num].wizard, this.currentstate[num].colour, this.currentstate[num].textcolour, wizardImages[num]);
       }
   }
 
-  drawHand(ctx, pos, length, width, wizard, colour, textcolour) {
+  drawHand(ctx, pos, length, width, wizard, colour, textcolour, image) {
     ctx.beginPath();
     ctx.lineWidth = width;
     if (colour) {
@@ -356,6 +362,23 @@ class WizardClockCard extends HTMLElement {
     ctx.quadraticCurveTo(-width, -length*0.5, 0, 0);
 
     ctx.fill();
+	  
+	//if (image && image.complete){
+	//	ctx.drawImage(image, -width, -length*1.1, width*2, width*2);
+	//}
+	  
+	ctx.save()
+    ctx.beginPath()
+    ctx.arc(0, -length, width*2, 0, Math.PI * 2, false)
+    //ctx.strokeStyle = '#2465D3'
+    //ctx.stroke()
+    ctx.clip()
+    ctx.shadowColor = "#0008";
+    ctx.shadowBlur = 10;
+    ctx.shadowOffsetX = 5;
+    ctx.shadowOffsetY = 5;
+    ctx.drawImage(image, -width, -length*1.1, width*2, width*2)
+    ctx.restore()
 
     ctx.font = width*this.fontScale + "px " + this.selectedFont;
     if (textcolour) {
