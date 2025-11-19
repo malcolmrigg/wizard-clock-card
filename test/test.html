@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Wizard Clock Test</title>
+  <style>
+    body { font-family: sans-serif; padding: 20px; }
+    #errorBox { color: red; padding: 10px; display: none; }
+    #inputs { margin-top: 20px; }
+
+    :root {
+      --primary-color: #2196F3;              
+      --primary-text-color: #ffffff;         
+      --secondary-background-color: #333333; 
+      --primary-background-color: #555555;   
+    }
+  </style>
+</head>
+<body>
+  <h1>Wizard Clock Standalone Test</h1>
+
+  <div id="errorBox"></div>
+
+  <wizard-clock-card id="card"></wizard-clock-card>
+
+  <div id="inputs"></div>
+
+  <!-- Load js-yaml BEFORE main script -->
+  <script src="https://cdn.jsdelivr.net/npm/js-yaml@4.1.0/dist/js-yaml.min.js"></script>
+
+  <!-- Load card module -->
+  <script type="module" src="../wizard-clock-card.js"></script>
+
+  <!-- Main logic -->
+  <script type="module">
+    const card = document.getElementById("card");
+    const inputBox = document.getElementById("inputs");
+    const errorBox = document.getElementById("errorBox");
+
+    function showError(msg) {
+      errorBox.innerText = msg;
+      errorBox.style.display = "block";
+    }
+
+    function clearError() {
+      errorBox.style.display = "none";
+    }
+
+    async function loadConfig() {
+      try {
+        const resp = await fetch("config.yml?_=" + Date.now());
+        const txt = await resp.text();
+        const cfg = jsyaml.load(txt);
+        return cfg;
+      } catch (e) {
+        showError("Could not load config.yml: " + e);
+        throw e;
+      }
+    }
+
+    function buildInputs(cfg) {
+      inputBox.innerHTML = "";
+      if (!cfg || !cfg.wizards) return;
+
+      for (const wiz of cfg.wizards) {
+        const row = document.createElement("div");
+        row.innerHTML = `
+          <label>${wiz.name}:</label>
+          <select data-wiz="${wiz.name}">
+            ${cfg.locations.map(loc => `<option value="${loc}">${loc}</option>`).join("")}
+          </select>
+        `;
+        inputBox.appendChild(row);
+      }
+
+      inputBox.querySelectorAll("select").forEach(sel => {
+        sel.addEventListener("change", () => {
+          const name = sel.dataset.wiz;
+          const value = sel.value;
+          const entity = wizardEntityMap[name];
+          hass.states[entity].state = value;
+          card.hass = hass;
+        });
+      });
+    }
+
+    const hass = { states: {} };
+    let wizardEntityMap = {};
+
+    async function init() {
+      clearError();
+      const cfg = await loadConfig();
+      card.setConfig(cfg);
+
+      // Mock all entities from config
+      for (const wiz of cfg.wizards) {
+        const entity = wiz.entity;
+        wizardEntityMap[wiz.name] = entity;
+        if (!hass.states[entity]) {
+          hass.states[entity] = { state: wiz.initial || 'not_home', attributes: {} };
+        }
+      }
+
+      card.hass = hass;
+      buildInputs(cfg);
+    }
+
+    init();
+
+    // Hot reload config.yml every 2 seconds
+    let lastConfig = "";
+    setInterval(async () => {
+      try {
+        const resp = await fetch("config.yml?_=" + Date.now());
+        const txt = await resp.text();
+        if (txt !== lastConfig) {
+          lastConfig = txt;
+          const cfg = jsyaml.load(txt);
+          card.setConfig(cfg);
+
+          // Ensure all entities exist
+          for (const wiz of cfg.wizards) {
+            const entity = wiz.entity;
+            wizardEntityMap[wiz.name] = entity;
+            if (!hass.states[entity]) {
+              hass.states[entity] = { state: wiz.initial || 'not_home', attributes: {} };
+            }
+          }
+
+          buildInputs(cfg);
+          card.hass = hass;
+        }
+      } catch (e) {
+        showError("Hot reload failed: " + e);
+      }
+    }, 2000);
+  </script>
+</body>
+</html>

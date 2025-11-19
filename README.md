@@ -62,6 +62,14 @@ Use this repository as a custom repository in HACS.
 * lost (optional): text to display when an entity is lost, defaults to "Lost". 
 * travelling (optional): text to display when an entity is travelling, defaults to "Travelling"
 * width (optional): set the width (and therefore height, as it is always a circle) of the clock in pixels. Defaults to 500 if not set.
+* font_scale_wizards (optional): Scale for the text of wizard names on the watch hands. Default is 1.1; for example, 1.2 makes it about 10% bigger.
+* font_scale_locations (optional): Scale for the text of location names on the edge of the clock. Default is 1.65; for example, 1.2 makes it smaller.
+* location_placement_adjustment (optional): Adjust the placement of the location name text closer to the edge (negative values) or closer to the center (positive values), e.g., -10 or 10.
+* outer_ring_width (optional): Thickness of the outer ring of the clock face.
+* outer_ring_colour (optional): Colour of the outer ring of the clock face.
+* background_colour (optional): Background colour of the watch face.
+* background_image (optional): Background image for the watch face, e.g., '/local/custom-lovelace/clock.jpg'.
+* location_text_colour (optional): Colour of the text for the location names.
 
 ```
 type: 'custom:wizard-clock-card'
@@ -89,6 +97,15 @@ fontface: >-
 width: 500
 lost: 'In mortal peril'
 travelling: 'Between here and there'
+shaft_size: 5
+font_scale_wizards: 1
+font_scale_locations: 1.3
+location_placement_afjustment: -5
+outer_ring_width: 4
+outer_ring_colour: "#000"
+back_ground_colour: "#222"
+back_ground_image: 'clock.jpg'
+location_text_colour: "#AAA"
 ```
 
 
@@ -101,7 +118,7 @@ These are features/ideas that I'd like to add at some point, but may not happen 
 
   * ~~Maybe include support for themes too, if that's possible?~~ Colours are now taken from whatever theme you are using by default. Hand/text colour for each wizard can be overridden if desired... so it's getting there.
   * Add pictures on clock hands taken from people/entities or possibly zones? Or even a combination of both, so person x at location y has a special "person x at location y" picture.
-  * Add config options for clock face colours, including the ability to make them transparent.
+  * ~~Add config options for clock face colours~~, including the ability to make them transparent.
   
 * Better support for "speed" attributes, including for person entities looking up the speed from their current device tracker source
 * Better text rendering - this goes along with making it pretty, ~~perhaps include drawing the text in arcs around the outside of the clock~~, and handling longer location/wizard names better. Arc text now done, with code nicked from somebody else :)
