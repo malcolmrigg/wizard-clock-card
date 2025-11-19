@@ -1,0 +1,37 @@
+type: custom:wizard-clock-card
+locations:
+  - Hjemme
+  - Fortabt
+  - På farten
+wizards:
+  - entity: sensor.anders_location
+    name: Anders
+    colour: "#6AD"
+    textcolour: "#000"
+  - entity: sensor.monique_location
+    name: Monique
+    colour: "#C8A"
+    textcolour: "#000"
+  - entity: sensor.emil_location
+    name: Emil
+    colour: "#7C9"
+    textcolour: "#000"
+  - entity: sensor.charlie_location
+    name: Charlie
+    colour: "#DB0"
+    textcolour: "#000"
+fontname: itcblkad_font
+fontface: >-
+  font-family: itcblkad_font;    src: local(itcblkad_font),
+  url('itcblkad.ttf') format('opentype');
+width: 600  
+shaft_colour: "#999"
+shaft_size: 5
+font_scale_wizards: 1
+font_scale_locations: 1.3
+location_placement_afjustment: -10
+outer_ring_width: 4
+outer_ring_colour: "#F00"
+back_ground_colour: "#222"
+back_ground_image: 'clock.jpg'
+location_text_colour: "#00F"

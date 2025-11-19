@@ -104,7 +104,15 @@ class WizardClockCard extends HTMLElement {
     } else { 
       this.selectedFont = "itcblkad_font";
     }
-    this.fontScale = 1.1;
+    this.fontScaleHand = Number(this.config.font_scale_wizards) || 1.1;
+    this.fontScaleNumbers = Number(this.config.font_scale_locations) || 1.65;
+    this.numbersAdjustment = Number(this.config.location_placement_afjustment) || 0;
+    this.lineWidth = Number(this.config.outer_ring_width) || -1;
+    this.lineColour = this.config.outer_ring_colour ? this.config.outer_ring_colour : getComputedStyle(document.documentElement).getPropertyValue('--primary-background-color:');
+    this.hingeSize = Number(this.config.shaft_size) || this.radius*0.05;
+    this.backGroundColour = this.config.back_ground_colour ? this.config.back_ground_colour : getComputedStyle(document.documentElement).getPropertyValue('--secondary-background-color');
+    this.backGroundImage = this.config.back_ground_image;
+    this.numbersColour = this.config.location_text_colour ? this.config.location_text_colour : getComputedStyle(document.documentElement).getPropertyValue('--primary-text-color');
 
     var obj = this;
     this.lastframe = requestAnimationFrame(function(){ 
@@ -152,7 +160,7 @@ class WizardClockCard extends HTMLElement {
       this.drawFace(this.ctx, this.radius);
       this.drawNumbers(this.ctx, this.radius, this.zones);
       this.drawTime(this.ctx, this.radius, this.zones, this.config.wizards);
-      this.drawHinge(this.ctx, this.radius, this.shaft_colour);
+      this.drawHinge(this.ctx, this.hingeSize, this.shaft_colour);
       // request next frame if required
       var redraw = false;
       var num;
@@ -179,17 +187,46 @@ class WizardClockCard extends HTMLElement {
 
     ctx.beginPath();
     ctx.arc(0, 0, radius, 0, 2*Math.PI);
-    ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--secondary-background-color');
+    ctx.fillStyle = this.backGroundColour;
     ctx.fill();
 
-    ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--primary-background-color:');
-    ctx.lineWidth = radius*0.02;
+    ctx.strokeStyle = this.lineColour;
+    ctx.lineWidth = this.lineWidth < 0 ? radius*0.02 : this.lineWidth;
     ctx.stroke();
+
+    if (this.backGroundImage) {
+        if (!this.bgImage) {
+            this.bgImage = new Image();
+            this.bgImage.src = this.backGroundImage;
+            this.bgImage.onload = () => {
+                const offCanvas = document.createElement('canvas');
+                offCanvas.width = radius*2;
+                offCanvas.height = radius*2;
+                const offCtx = offCanvas.getContext('2d');
+
+                offCtx.beginPath();
+                offCtx.arc(radius, radius, radius, 0, 2*Math.PI);
+                offCtx.clip();
+
+                offCtx.drawImage(this.bgImage, 0, 0, radius*2, radius*2);
+
+                this.bgCircular = offCanvas;
+
+                if (this.lastframe) cancelAnimationFrame(this.lastframe);
+                this.lastframe = requestAnimationFrame(() => this.drawClock());
+            };
+            return;
+        }
+
+        if (this.bgCircular) {
+            ctx.drawImage(this.bgCircular, -radius, -radius, radius*2, radius*2);
+        }
+    }
   }
 
-  drawHinge(ctx, radius, colour) {
+  drawHinge(ctx, size, colour) {
     ctx.beginPath();
-    ctx.arc(0, 0, radius*0.05, 0, 2*Math.PI);
+    ctx.arc(0, 0, size, 0, 2*Math.PI);
     ctx.fillStyle = colour;
     ctx.shadowColor = "#0008";
     ctx.shadowBlur = 10;
@@ -204,10 +241,10 @@ class WizardClockCard extends HTMLElement {
       */
       var ang;
       var num;
-      ctx.font = radius*0.15*this.fontScale + "px " + this.selectedFont;
+      ctx.font = radius*0.1*this.fontScaleNumbers + "px " + this.selectedFont;
       ctx.textBaseline="middle";
       ctx.textAlign="center";
-      ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--primary-text-color');
+      ctx.fillStyle = this.numbersColour;
       for(num= 0; num < locations.length; num++){
           ang = num * Math.PI / locations.length * 2;
           // rotate to center of drawing position
@@ -234,7 +271,7 @@ class WizardClockCard extends HTMLElement {
           div.style.top = '-10000px';
           div.style.left = '-10000px';
           div.style.fontFamily = this.selectedFont;
-          div.style.fontSize = radius*0.15*this.fontScale + "px";
+          div.style.fontSize = radius*0.1*this.fontScaleNumbers + "px";
           document.body.appendChild(div);
           var textHeight = div.offsetHeight;
           document.body.removeChild(div);
@@ -255,7 +292,7 @@ class WizardClockCard extends HTMLElement {
               ctx.rotate((charWid/2) / (radius - textHeight) * -1); 
               // draw the character at "top" or "bottom" 
               // depending on inward or outward facing
-              ctx.fillText(text[j], 0, (inwardFacing ? 1 : -1) * (0 - radius + textHeight ));
+              ctx.fillText(text[j], 0, (inwardFacing ? 1 : -1) * (0 - radius + textHeight + this.numbersAdjustment));
 
               ctx.rotate((charWid/2 + kerning) / (radius - textHeight) * -1); // rotate half letter
           }
@@ -357,7 +394,7 @@ class WizardClockCard extends HTMLElement {
 
     ctx.fill();
 
-    ctx.font = width*this.fontScale + "px " + this.selectedFont;
+    ctx.font = width*this.fontScaleHand + "px " + this.selectedFont;
     if (textcolour) {
       ctx.fillStyle = textcolour;
     } else {
