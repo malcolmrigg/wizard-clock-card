@@ -30,11 +30,21 @@ class WizardClockCard extends HTMLElement {
     this.ctx.translate(this.radius, this.radius);
     this.radius = this.radius * 0.90;
 
+    // Cache theme colors once per hass update so drawing functions do not call
+    // getComputedStyle on every animation frame.
+    const cs = getComputedStyle(document.documentElement);
+    this._colors = {
+      primary:             cs.getPropertyValue('--primary-color'),
+      primaryText:         cs.getPropertyValue('--primary-text-color'),
+      secondaryBackground: cs.getPropertyValue('--secondary-background-color'),
+      primaryBackground:   cs.getPropertyValue('--primary-background-color'),
+    };
+
     // Get information about current locations and wizards
 
     this.zones = [];
     this.targetstate = [];
-  
+
     if (this.lastframe && this.lastframe != 0){
       cancelAnimationFrame(this.lastframe);
       this.lastframe = 0;
@@ -74,10 +84,7 @@ class WizardClockCard extends HTMLElement {
       }
     }
 
-    var obj = this;
-    this.lastframe = requestAnimationFrame(function(){ 
-      obj.drawClock(); 
-    });
+    this.lastframe = requestAnimationFrame(this._boundDrawClock);
     if (debugLogging) console.log(`${this.config.header ? "(" + this.config.header + ") " : ""}set hass end`);
   }
 
@@ -94,19 +101,19 @@ class WizardClockCard extends HTMLElement {
     if (!config.wizards) {
       throw new Error('You need to define some wizards');
     }
-    
+
     this.config = config;
     this.currentstate = [];
     this.lostState = config.lost ? config.lost : "Away";
     this.travellingState = config.travelling ? config.travelling : "Away";
     this.min_location_slots = this.config.min_location_slots ? this.config.min_location_slots : 0;
-    
+
     if (this.config.shaft_colour){
       this.shaft_colour = this.config.shaft_colour;
     }
     else {
       this.shaft_colour = getComputedStyle(document.documentElement).getPropertyValue('--primary-color');
-    }    
+    }
 
     if (this.config.fontName) {
       this.selectedFont = this.config.fontName;
@@ -127,6 +134,10 @@ class WizardClockCard extends HTMLElement {
     // Set up document canvas.
 
     this.configuredWidth = this.config.width ? this.config.width : "500";
+
+    // Bind the animation callback once so requestAnimationFrame reuses the same
+    // function object instead of allocating a new closure on every call.
+    this._boundDrawClock = () => this.drawClock();
 
     if (!this.canvas) {
       this.card = document.createElement('ha-card');
@@ -152,14 +163,26 @@ class WizardClockCard extends HTMLElement {
         throw new Error("Browser does not support " + CARDNAME + " canvas.");
       this.ctx = this.canvas.getContext("2d");
 
-      /* watch for changes in the size of the card */
-      const observer = createResizeObserver(this);
-      observer.observe(this.card);
+      // Store the observer so disconnectedCallback can clean it up.
+      this._resizeObserver = createResizeObserver(this);
+      this._resizeObserver.observe(this.card);
     }
     if (debugLogging) console.log(`${this.config.header ? "(" + this.config.header + ") " : ""}getConfig end`);
   }
 
-  // getCardSize Indicates the height of the card in 50px units. 
+  // Clean up when the card is removed from the dashboard to prevent memory leaks.
+  disconnectedCallback() {
+    if (this._resizeObserver) {
+      this._resizeObserver.disconnect();
+    }
+    if (this.lastframe) {
+      cancelAnimationFrame(this.lastframe);
+      this.lastframe = 0;
+    }
+    clearTimeout(this._resizeTimeout);
+  }
+
+  // getCardSize Indicates the height of the card in 50px units.
   // Home Assistant uses this to automatically distribute all cards over the available columns.
   getCardSize() {
     var cardSize = (this.configuredWidth / 50).toFixed(1);
@@ -226,32 +249,32 @@ class WizardClockCard extends HTMLElement {
   }
 
   drawClock() {
-      this.lastframe = 0;
+    this.lastframe = 0;
 
-      this.ctx.clearRect(-this.canvas.width/2, -this.canvas.height/2, this.canvas.width/2, this.canvas.height/2)
-      this.drawFace(this.ctx, this.radius);
-      this.drawNumbers(this.ctx, this.radius, this.zones);
-      this.drawTime(this.ctx, this.radius, this.zones, this.config.wizards);
-      this.drawHinge(this.ctx, this.radius, this.shaft_colour);
-      // request next frame if required
-      var redraw = false;
-      var num;
-      for (num = 0; num < this.currentstate.length; num++){
-        if (Math.round(this.currentstate[num].pos*100) != Math.round(this.targetstate[num].pos*100))
-        {
-          redraw = true;
-        }
+    // Clear the full canvas. The origin is translated to centre so we offset by
+    // half each dimension to reach the top-left corner.
+    this.ctx.clearRect(-this.canvas.width/2, -this.canvas.height/2, this.canvas.width, this.canvas.height);
+    this.drawFace(this.ctx, this.radius);
+    this.drawNumbers(this.ctx, this.radius, this.zones);
+    this.drawTime(this.ctx, this.radius, this.zones, this.config.wizards);
+    this.drawHinge(this.ctx, this.radius, this.shaft_colour);
+    // request next frame if required
+    var redraw = false;
+    var num;
+    for (num = 0; num < this.currentstate.length; num++){
+      if (Math.round(this.currentstate[num].pos*100) != Math.round(this.targetstate[num].pos*100))
+      {
+        redraw = true;
       }
+    }
 
-      if (redraw){
-        var obj = this;
-        this.lastframe = requestAnimationFrame(function(){ 
-          obj.drawClock(); 
-        });
-      }
+    if (redraw){
+      this.lastframe = requestAnimationFrame(this._boundDrawClock);
+    }
   }
 
   drawFace(ctx, radius) {
+    ctx.save();
     ctx.shadowColor = null;
     ctx.shadowBlur = 0;
     ctx.shadowOffsetX = 0;
@@ -259,15 +282,17 @@ class WizardClockCard extends HTMLElement {
 
     ctx.beginPath();
     ctx.arc(0, 0, radius, 0, 2*Math.PI);
-    ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--secondary-background-color');
+    ctx.fillStyle = this._colors.secondaryBackground;
     ctx.fill();
 
-    ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--primary-background-color:');
+    ctx.strokeStyle = this._colors.primaryBackground;
     ctx.lineWidth = radius*0.02;
     ctx.stroke();
+    ctx.restore();
   }
 
   drawHinge(ctx, radius, colour) {
+    ctx.save();
     ctx.beginPath();
     ctx.arc(0, 0, radius*0.05, 0, 2*Math.PI);
     ctx.fillStyle = colour;
@@ -276,26 +301,35 @@ class WizardClockCard extends HTMLElement {
     ctx.shadowOffsetX = 5;
     ctx.shadowOffsetY = 5;
     ctx.fill();
+    ctx.restore();
   }
 
   drawNumbers(ctx, radius, locations) {
-      /* 
+      /*
         Text on a curve code modified from function written by James Alford here: http://blog.graphicsgen.com/2015/03/html5-canvas-rounded-text.html
       */
-      var ang;
       var num;
       ctx.font = radius*0.15*this.fontScale + "px " + this.selectedFont;
       ctx.textBaseline="middle";
       ctx.textAlign="center";
-      ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--primary-text-color');
+      ctx.fillStyle = this._colors.primaryText;
+
+      // Measure font height via canvas metrics rather than forcing a DOM reflow
+      // on every frame (the previous approach appended/removed a div each call).
+      const heightMetrics = ctx.measureText("Mg");
+      const textHeight = heightMetrics.actualBoundingBoxAscent + heightMetrics.actualBoundingBoxDescent;
+
       for(num= 0; num < locations.length; num++){
-          ang = num * Math.PI / locations.length * 2;
-          // rotate to center of drawing position
+          // ctx.save/restore handles all accumulated per-character rotations,
+          // replacing the manual undo rotations at the end of each iteration.
+          ctx.save();
+
+          var ang = num * Math.PI / locations.length * 2;
           ctx.rotate(ang);
 
-          var startAngle = 0; 
+          var startAngle = 0;
           var inwardFacing = true;
-          var kerning = 0; // can adjust kerning using this - maybe automatically adjust it based on text length? 
+          var kerning = 0;
           var text = locations[num].split("").reverse().join("");
           // if we're in the bottom half of the clock then reverse the facing of the text so that it's not upside down
           if (ang > Math.PI / 2 && ang < ((Math.PI * 2) - (Math.PI / 2)))
@@ -306,18 +340,6 @@ class WizardClockCard extends HTMLElement {
           }
 
           text = this.isRtlLanguage(text) ? text.split("").reverse().join("") : text;
-
-          // calculate height of the font. Many ways to do this - you can replace with your own!
-          var div = document.createElement("div");
-          div.innerHTML = text;
-          div.style.position = 'absolute';
-          div.style.top = '-10000px';
-          div.style.left = '-10000px';
-          div.style.fontFamily = this.selectedFont;
-          div.style.fontSize = radius*0.15*this.fontScale + "px";
-          document.body.appendChild(div);
-          var textHeight = div.offsetHeight;
-          document.body.removeChild(div);
 
           // rotate 50% of total angle for center alignment
           for (var j = 0; j < text.length; j++) {
@@ -332,23 +354,20 @@ class WizardClockCard extends HTMLElement {
           for (var j = 0; j < text.length; j++) {
               var charWid = ctx.measureText(text[j]).width; // half letter
               // rotate half letter
-              ctx.rotate((charWid/2) / (radius - textHeight) * -1); 
-              // draw the character at "top" or "bottom" 
+              ctx.rotate((charWid/2) / (radius - textHeight) * -1);
+              // draw the character at "top" or "bottom"
               // depending on inward or outward facing
               ctx.fillText(text[j], 0, (inwardFacing ? 1 : -1) * (0 - radius + textHeight ));
 
               ctx.rotate((charWid/2 + kerning) / (radius - textHeight) * -1); // rotate half letter
           }
-          // rotate back round from the end position to the central position of the text
-          ctx.rotate(startAngle);
 
-          // rotate to the next location
-          ctx.rotate(-ang);
+          ctx.restore();
       }
   }
 
   isRtlLanguage(text) {
-    const rtlChar = /[\u0590-\u05FF\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]/;
+    const rtlChar = /[֐-׿؀-ۿݐ-ݿࢠ-ࣿﭐ-﷿ﹰ-﻿]/;
     return rtlChar.test(text);
   }
 
@@ -357,9 +376,9 @@ class WizardClockCard extends HTMLElement {
       var num;
       for (num = 0; num < wizards.length; num++){
         const state = this._hass.states[wizards[num].entity];
-        var stateStr = state && state.state != "off" && state.state != "unknown" ? 
-          (state.attributes ? 
-            (state.attributes.message ? state.attributes.message : state.state) 
+        var stateStr = state && state.state != "off" && state.state != "unknown" ?
+          (state.attributes ?
+            (state.attributes.message ? state.attributes.message : state.state)
             : state.state
           )
           :  this.lostState;
@@ -369,7 +388,7 @@ class WizardClockCard extends HTMLElement {
             stateStr = state.attributes.locality
           }
         }
-	
+
         if (this.exclude.includes(stateStr) ||
 	  (this._hass.states["zone." + stateStr] && this._hass.states["zone." + stateStr].attributes && this._hass.states["zone." + stateStr].attributes.friendly_name &&
           this.exclude.includes(this._hass.states["zone." + stateStr].attributes.friendly_name))) {
@@ -391,7 +410,7 @@ class WizardClockCard extends HTMLElement {
         var wizardOffset = ((num-((wizards.length-1)/2)) / wizards.length * 0.6);
         var location = wizardOffset; // default
         for (locnum = 0; locnum < locations.length; locnum++){
-          if ((locations[locnum].toLowerCase() == stateStr.toLowerCase()) 
+          if ((locations[locnum].toLowerCase() == stateStr.toLowerCase())
             || (locations[locnum] == this.travellingState && (stateVelo > 15 || isMovingByProximity))
             || (locations[locnum] == this.lostState && stateStr == "not_home" && stateVelo <= 15 && !isMovingByProximity))
           {
@@ -399,7 +418,6 @@ class WizardClockCard extends HTMLElement {
             break;
           }
         }
-        //var location = locations.indexOf(wizards[num].location) + ((num-((wizards.length-1)/2)) / wizards.length * 0.75);
         location = location * Math.PI / locations.length * 2;
         // set targetstate
         this.targetstate.push({pos: location, length: radius*0.7, width: radius*0.1, wizard: wizards[num].name, colour: wizards[num].colour, textcolour: wizards[num].textcolour});
@@ -411,7 +429,7 @@ class WizardClockCard extends HTMLElement {
       }
       for (num = 0; num < wizards.length; num++){
         if (this.currentstate[num]){
-          this.currentstate[num].pos = this.currentstate[num].pos + ((this.targetstate[num].pos - this.currentstate[num].pos) / 60); 
+          this.currentstate[num].pos = this.currentstate[num].pos + ((this.targetstate[num].pos - this.currentstate[num].pos) / 60);
         } else {
           // default to 12 o'clock to start
           this.currentstate.push({pos: 0, length: this.targetstate[num].length, width: this.targetstate[num].width, wizard: this.targetstate[num].wizard, colour: this.targetstate[num].colour, textcolour: this.targetstate[num].textcolour});
@@ -424,13 +442,12 @@ class WizardClockCard extends HTMLElement {
   }
 
   drawHand(ctx, pos, length, width, wizard, colour, textcolour) {
+    // ctx.save/restore replaces the manual rotate(-pos) / translate(0, length/2)
+    // undo operations, which could accumulate floating-point error over time.
+    ctx.save();
     ctx.beginPath();
     ctx.lineWidth = width;
-    if (colour) {
-      ctx.fillStyle = colour;
-    } else {
-      ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--primary-color');
-    }
+    ctx.fillStyle = colour || this._colors.primary;
     ctx.shadowColor = "#0008";
     ctx.shadowBlur = 10;
     ctx.shadowOffsetX = 5;
@@ -441,44 +458,30 @@ class WizardClockCard extends HTMLElement {
     ctx.quadraticCurveTo(width*0.2, -length*0.8, 0, -length);
     ctx.quadraticCurveTo(-width*0.2, -length*0.8, -width, -length*0.75);
     ctx.quadraticCurveTo(-width, -length*0.5, 0, 0);
-
     ctx.fill();
 
     ctx.font = width*this.fontScale + "px " + this.selectedFont;
-    if (textcolour) {
-      ctx.fillStyle = textcolour;
-    } else {
-      ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--primary-text-color');
-    }
+    ctx.fillStyle = textcolour || this._colors.primaryText;
     ctx.translate(0, -length/2);
-    ctx.rotate(Math.PI/2)
-    if (pos < Math.PI && pos >= 0) 
+    ctx.rotate(Math.PI/2);
+    if (pos < Math.PI && pos >= 0)
         ctx.rotate(Math.PI);
     ctx.fillText(wizard, 0, 0);
-    if (pos < Math.PI && pos >= 0) 
-        ctx.rotate(-Math.PI);
-    ctx.rotate(-Math.PI/2);
-    ctx.translate(0, length/2);
-    
-    ctx.rotate(-pos);
+    ctx.restore();
   }
 
 }
 
-/* debounce the reaction to a card resize */
-let resizeTimeout = false;
-let resizeDelay = 500;
-
-function debouncedOnResize(thisObject) {
-  if (debugLogging) console.log(`${thisObject.config && thisObject.config.header ? "(" + thisObject.config.header + ") " : ""}debouncedOnResize triggering set hass`);
-  /* trigger an update */
-  thisObject.hass = thisObject._hass;
-}
-
+// Resize debounce timeout is stored per-instance so multiple clock cards on
+// the same dashboard do not interfere with each other.
 function createResizeObserver(thisObject) {
   return new ResizeObserver((entries) => {
-    clearTimeout(resizeTimeout);
-    resizeTimeout = setTimeout(() => debouncedOnResize(thisObject), resizeDelay);  });
+    clearTimeout(thisObject._resizeTimeout);
+    thisObject._resizeTimeout = setTimeout(() => {
+      if (debugLogging) console.log(`${thisObject.config && thisObject.config.header ? "(" + thisObject.config.header + ") " : ""}debouncedOnResize triggering set hass`);
+      thisObject.hass = thisObject._hass;
+    }, 500);
+  });
 }
 
 customElements.define(CARDNAME, WizardClockCard);
