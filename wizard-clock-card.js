@@ -48,15 +48,10 @@ class WizardClockCard extends HTMLElement {
         }
       }
     }
-    if (this.config.travelling){
-      this.zones.push(this.config.travelling);
-    }
-    if (this.config.lost){
-      this.zones.push(this.lostState);
-    }
-
+    this._wizardStates = {};
     for (num = 0; num < this.config.wizards.length; num++){
-      var stateStr = this.getWizardState(this.config.wizards[num].entity);
+      var stateStr = this.getWizardState(this.config.wizards[num]);
+      this._wizardStates[this.config.wizards[num].entity] = stateStr;
       if (debugLogging) {
         console.log(`${this.config.header ? "(" + this.config.header + ") " : ""}(${this.config.wizards[num].name}) set hass stateStr: ${stateStr}`);
       }
@@ -97,8 +92,8 @@ class WizardClockCard extends HTMLElement {
     
     this.config = config;
     this.currentstate = [];
-    this.lostState = config.lost ? config.lost : "Away";
-    this.travellingState = config.travelling ? config.travelling : "Away";
+    this.lostState = config.lost ? config.lost : "Lost";
+    this.travellingState = config.travelling || config.traveling || "Travelling";
     this.min_location_slots = this.config.min_location_slots ? this.config.min_location_slots : 0;
     
     if (this.config.shaft_colour){
@@ -108,8 +103,8 @@ class WizardClockCard extends HTMLElement {
       this.shaft_colour = getComputedStyle(document.documentElement).getPropertyValue('--primary-color');
     }    
 
-    if (this.config.fontName) {
-      this.selectedFont = this.config.fontName;
+    if (this.config.fontName || this.config.fontname) {
+      this.selectedFont = this.config.fontName || this.config.fontname;
     } else {
       this.selectedFont = "itcblkad_font";
     }
@@ -167,8 +162,10 @@ class WizardClockCard extends HTMLElement {
     return cardSize;
   }
 
-  // get-WizardState makes all decisions about what stateStr should be. (What "number" to point to.)
-  getWizardState(entity) {
+  // getWizardState is the single source of truth for what state a wizard is in.
+  // Accepts a full wizard config object (or a plain entity string for backward compat).
+  getWizardState(wizard) {
+    const entity = typeof wizard === 'string' ? wizard : wizard.entity;
     const state = this._hass.states[entity];
     if (!state) {
       console.log(`${this.config.header ? "(" + this.config.header + ") " : ""}Wizard ${entity} does not exist.`);
@@ -179,6 +176,11 @@ class WizardClockCard extends HTMLElement {
         state.attributes.speed ? state.attributes.speed : (
           state.attributes.moving ? 16 : 0
     ))) : 0;
+
+    const proxSensor = typeof wizard === 'string' ? null : wizard.proximity_sensor;
+    const isMovingByProximity = proxSensor &&
+      this._hass.states[proxSensor] &&
+      ['towards', 'away_from'].includes(this._hass.states[proxSensor].state);
 
     /* Prioritize stateStr: 1. message attribute, 2. zone attribute, 3. state */
     var stateStr = "not_home";
@@ -208,16 +210,16 @@ class WizardClockCard extends HTMLElement {
       stateStr = this._hass.states["zone." + stateStr].attributes.friendly_name;
     }
     /* If away and not in a zone, show locality (if locality is geocoded),
-    /* otherwise show travelling (if configured and velocity > 15),
-    /* otherwise show lost (if configured) or Away */
+    /* otherwise show travelling (if moving by velocity or proximity sensor),
+    /* otherwise show lost */
     if (stateStr.toLowerCase() === 'away' || stateStr === 'not_home') {
-      if (stateVelo > 15 && this.config.travelling) {
+      if (stateVelo > 15 || isMovingByProximity) {
         stateStr = this.travellingState;
       } else {
         stateStr = this.lostState;
       }
       if (state.attributes.locality && !this.exclude.includes(state.attributes.locality)) {
-        stateStr = state.attributes.locality
+        stateStr = state.attributes.locality;
       }
     } else if (stateStr === 'unavailable') {
       stateStr = this.lostState;
@@ -356,50 +358,18 @@ class WizardClockCard extends HTMLElement {
       this.targetstate = [];
       var num;
       for (num = 0; num < wizards.length; num++){
-        const state = this._hass.states[wizards[num].entity];
-        var stateStr = state && state.state != "off" && state.state != "unknown" ? 
-          (state.attributes ? 
-            (state.attributes.message ? state.attributes.message : state.state) 
-            : state.state
-          )
-          :  this.lostState;
-        /* Point to locality if not in a zone (if locality is geocoded) */
-        if (stateStr === 'Away') {
-          if (state.attributes.locality) {
-            stateStr = state.attributes.locality
-          }
-        }
-	
-        if (this.exclude.includes(stateStr) ||
-	  (this._hass.states["zone." + stateStr] && this._hass.states["zone." + stateStr].attributes && this._hass.states["zone." + stateStr].attributes.friendly_name &&
-          this.exclude.includes(this._hass.states["zone." + stateStr].attributes.friendly_name))) {
-
-          stateStr = this.lostState;
-	}
-        // Check both velocity and proximity for movement
-        const stateVelo = state && state.attributes ? (
-          state.attributes.velocity ? state.attributes.velocity : (
-            state.attributes.moving ? 16 : 0
-          )) : 0;
-
-        // New: Check proximity direction sensor if configured
-        const isMovingByProximity = wizards[num].proximity_sensor &&
-          this._hass.states[wizards[num].proximity_sensor] &&
-          ['towards', 'away_from'].includes(this._hass.states[wizards[num].proximity_sensor].state);
+        // Use the state already resolved by getWizardState in set hass — single source of truth.
+        const stateStr = this._wizardStates[wizards[num].entity] || this.lostState;
 
         var locnum;
-        var wizardOffset = ((num-((wizards.length-1)/2)) / wizards.length * 0.6);
+        var wizardOffset = ((num-((wizards.length-1)/2)) / wizards.length * 0.3);
         var location = wizardOffset; // default
         for (locnum = 0; locnum < locations.length; locnum++){
-          if ((locations[locnum].toLowerCase() == stateStr.toLowerCase()) 
-            || (locations[locnum] == this.travellingState && (stateVelo > 15 || isMovingByProximity))
-            || (locations[locnum] == this.lostState && stateStr == "not_home" && stateVelo <= 15 && !isMovingByProximity))
-          {
+          if (locations[locnum].toLowerCase() == stateStr.toLowerCase()) {
             location = locnum + wizardOffset;
             break;
           }
         }
-        //var location = locations.indexOf(wizards[num].location) + ((num-((wizards.length-1)/2)) / wizards.length * 0.75);
         location = location * Math.PI / locations.length * 2;
         // set targetstate
         this.targetstate.push({pos: location, length: radius*0.7, width: radius*0.1, wizard: wizards[num].name, colour: wizards[num].colour, textcolour: wizards[num].textcolour});
