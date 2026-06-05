@@ -18,13 +18,17 @@ class WizardClockCard extends HTMLElement {
       if (debugLogging) console.log(`${this.config.header ? "(" + this.config.header + ") " : ""}skipping update`);
       return;
     }
-    this.availableWidth = Math.round(Math.min(this.availableWidth, this.configuredWidth));
+    // If width is explicitly configured, cap to that size; otherwise fill the column.
+    if (this.configuredWidth > 0) {
+      this.availableWidth = Math.round(Math.min(this.availableWidth, this.configuredWidth));
+    }
+    const internalSize = this.configuredWidth > 0 ? this.configuredWidth : this.availableWidth;
 
-    this.canvas.width = this.configuredWidth;
-    this.canvas.height = this.configuredWidth;
+    this.canvas.width = internalSize;
+    this.canvas.height = internalSize;
     this.canvas.style.width = `${this.availableWidth}px`;
     this.canvas.style.height = `${this.availableWidth}px`;
-    this.scaleRatio = this.configuredWidth / this.availableWidth;
+    this.scaleRatio = internalSize / this.availableWidth;
 
     this.radius = this.canvas.height / 2;
     this.ctx.translate(this.radius, this.radius);
@@ -111,7 +115,7 @@ class WizardClockCard extends HTMLElement {
     if (this.config.fontName) {
       this.selectedFont = this.config.fontName;
     } else {
-      this.selectedFont = "itcblkad_font";
+      this.selectedFont = "Palatino Linotype, Palatino, Book Antiqua, serif";
     }
     this.fontScale = 1.1;
 
@@ -126,21 +130,18 @@ class WizardClockCard extends HTMLElement {
 
     // Set up document canvas.
 
-    this.configuredWidth = this.config.width ? this.config.width : "500";
+    this.configuredWidth = this.config.width ? this.config.width : 0;
 
     if (!this.canvas) {
       this.card = document.createElement('ha-card');
       if (this.config.header) {
         this.card.header = this.config.header;
       }
-      var fontstyle = document.createElement('style');
       if (this.config.fontface){
+        var fontstyle = document.createElement('style');
         fontstyle.innerText = "@font-face { " + this.config.fontface + " }  ";
-      } else {
-        // my default
-        fontstyle.innerText = "@font-face {    font-family: itcblkad_font;    src: local(itcblkad_font), url('/local/ITCBLKAD.TTF') format('opentype');}  ";
+        document.body.appendChild(fontstyle);
       }
-      document.body.appendChild(fontstyle);
 
       this.div = document.createElement('div');
       this.div.style.textAlign = 'center';
@@ -159,12 +160,25 @@ class WizardClockCard extends HTMLElement {
     if (debugLogging) console.log(`${this.config.header ? "(" + this.config.header + ") " : ""}getConfig end`);
   }
 
-  // getCardSize Indicates the height of the card in 50px units. 
+  // getCardSize Indicates the height of the card in 50px units.
   // Home Assistant uses this to automatically distribute all cards over the available columns.
   getCardSize() {
-    var cardSize = (this.configuredWidth / 50).toFixed(1);
+    var size = this.configuredWidth > 0 ? this.configuredWidth : (this.availableWidth || 500);
+    var cardSize = (size / 50).toFixed(1);
     if (debugLogging) console.log(`${this.config.header ? "(" + this.config.header + ") " : ""}getCardSize = ${cardSize}`);
     return cardSize;
+  }
+
+  // getGridOptions is called by the HA sections layout to size the card.
+  getGridOptions() {
+    const size = this.configuredWidth > 0 ? this.configuredWidth : (this.availableWidth || 500);
+    const rows = Math.ceil(size / 56);
+    return {
+      columns: 12,
+      rows: rows,
+      min_columns: 2,
+      min_rows: rows,
+    };
   }
 
   // get-WizardState makes all decisions about what stateStr should be. (What "number" to point to.)
