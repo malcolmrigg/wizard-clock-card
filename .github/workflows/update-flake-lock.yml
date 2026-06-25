@@ -2,24 +2,9 @@ name: Update flake.lock
 
 on:
   schedule:
-    # Weekly on Monday at 06:00 UTC — keeps nixpkgs fresh without noise
     - cron: "0 6 * * 1"
   workflow_dispatch:
 
 jobs:
   update:
-    name: bump flake.lock
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-      pull-requests: write
-    steps:
-      - uses: actions/checkout@v6
-      - uses: DeterminateSystems/nix-installer-action@v22
-      - uses: DeterminateSystems/magic-nix-cache-action@v14
-      - uses: DeterminateSystems/update-flake-lock@v28
-        with:
-          pr-title: "chore: update flake.lock"
-          pr-labels: "dependencies,nix"
-          commit-msg: "chore: update flake.lock"
-          sign-commits: true
+    uses: genebean/.github/.github/workflows/update-flake-lock.yml@main

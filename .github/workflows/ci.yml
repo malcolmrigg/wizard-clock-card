@@ -5,18 +5,14 @@ on:
 
 jobs:
   pre-commit:
-    name: pre-commit hooks
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v6
-      - uses: DeterminateSystems/nix-installer-action@v22
-      - uses: DeterminateSystems/magic-nix-cache-action@v14
-      - uses: actions/setup-python@v6
-        with:
-          python-version: "3.x"
-      - name: Install npm dependencies
-        run: nix develop --command npm ci
-      - uses: pre-commit/action@v3.0.1
+    uses: genebean/.github/.github/workflows/pre-commit-nix.yml@main
+    with:
+      npm-install: true
+
+  nix-build:
+    uses: genebean/.github/.github/workflows/nix-build.yml@main
+    with:
+      npmDepsHash-glob: flake.nix
 
   typecheck:
     name: TypeScript type check
@@ -29,27 +25,6 @@ jobs:
         run: nix develop --command npm ci
       - name: Type check
         run: nix develop --command npm run typecheck
-
-  nix-build:
-    name: nix build
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v6
-      - uses: DeterminateSystems/nix-installer-action@v22
-      - uses: DeterminateSystems/magic-nix-cache-action@v14
-      - uses: DeterminateSystems/flake-checker-action@v12
-        with:
-          # Fail the PR if nixpkgs is more than 30 days stale.
-          # The update-flake-lock workflow keeps it fresh on a weekly cadence.
-          fail-mode: true
-      - name: Ensure npmDepsHash is not the placeholder value
-        run: |
-          if grep -qF 'sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=' flake.nix; then
-            echo "::error file=flake.nix::npmDepsHash is still the placeholder. Run 'nix build', copy the 'got:' hash into flake.nix, and commit."
-            exit 1
-          fi
-      - name: nix build
-        run: nix build
 
   npm-audit:
     name: npm audit
